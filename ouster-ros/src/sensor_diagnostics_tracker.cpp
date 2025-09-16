@@ -48,11 +48,6 @@ void SensorDiagnosticsState::notify_reset_sensor()
   total_sensor_resets_++;
 }
 
-rclcpp::Time SensorDiagnosticsState::get_zero_time() const
-{
-  return rclcpp::Time(0, 0, clock_->get_clock_type());
-}
-
 void SensorDiagnosticsState::update_status(
   const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
   const std::map<std::string, std::string> & debug_context)
@@ -75,12 +70,11 @@ void SensorDiagnosticsState::add_message_analysis(
 }
 
 std::map<std::string, std::string> SensorDiagnosticsState::get_debug_context(
-  const std::string & sensor_hostname, bool sensor_connection_active) const
+  const std::string & sensor_hostname) const
 {
   std::map<std::string, std::string> context;
 
   context["Sensor Hostname"] = sensor_hostname;
-  context["Sensor Connection Active"] = sensor_connection_active ? "true" : "false";
 
   auto now = clock_->now();
   if (last_successful_lidar_frame_.nanoseconds() > 0) {

@@ -47,8 +47,7 @@ public:
   void notify_reset_sensor();
   void update_metadata(const ouster::sensor::sensor_info & info);
 
-  std::map<std::string, std::string> get_debug_context(
-    const std::string & sensor_hostname, bool sensor_connection_active) const;
+  std::map<std::string, std::string> get_debug_context(const std::string & sensor_hostname) const;
 
   diagnostic_msgs::msg::DiagnosticStatus create_diagnostic_status(
     const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
@@ -107,9 +106,6 @@ protected:
   diagnostic_msgs::msg::DiagnosticStatus::_level_type current_level_{
     diagnostic_msgs::msg::DiagnosticStatus::STALE};
   std::map<std::string, std::string> current_debug_context_;
-
-private:
-  rclcpp::Time get_zero_time() const;
 };
 
 template <typename DiagnosticsVisitorRegistryType>
@@ -145,8 +141,7 @@ public:
 
   diagnostic_msgs::msg::DiagnosticStatus get_current_status() const;
 
-  std::map<std::string, std::string> get_debug_context(
-    const std::string & sensor_hostname, bool sensor_connection_active) const;
+  std::map<std::string, std::string> get_debug_context(const std::string & sensor_hostname) const;
 
   diagnostic_msgs::msg::DiagnosticStatus create_diagnostic_status(
     const std::string & message, diagnostic_msgs::msg::DiagnosticStatus::_level_type level,
@@ -231,9 +226,9 @@ SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_current_status() c
 template <typename DiagnosticsVisitorRegistryType>
 std::map<std::string, std::string>
 SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::get_debug_context(
-  const std::string & sensor_hostname, bool sensor_connection_active) const
+  const std::string & sensor_hostname) const
 {
-  return base_.get_debug_context(sensor_hostname, sensor_connection_active);
+  return base_.get_debug_context(sensor_hostname);
 }
 
 template <typename DiagnosticsVisitorRegistryType>
@@ -268,8 +263,7 @@ void SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::produce_diagnosti
 
   const auto & current_status = base_.get_current_status();
   auto diag_status = create_diagnostic_status(
-    current_status.message, current_status.level,
-    base_.get_debug_context(sensor_hostname_, sensor_connection_active_));
+    current_status.message, current_status.level, base_.get_debug_context(sensor_hostname_));
   std::move(diag_status.values.begin(), diag_status.values.end(), std::back_inserter(stat.values));
 }
 
@@ -278,18 +272,12 @@ bool SensorDiagnosticsTracker<DiagnosticsVisitorRegistryType>::is_sensor_healthy
 {
   auto now = base_.get_clock()->now();
 
-  // Check if we've received recent packets
   const auto timeout_threshold = rclcpp::Duration::from_seconds(5.0);
 
   bool lidar_healthy = (now - base_.get_last_successful_lidar_frame()) < timeout_threshold;
   bool imu_healthy = (now - base_.get_last_successful_imu_frame()) < timeout_threshold;
 
-  // Consider sensor healthy if we have recent data and low error rates
-  bool low_error_rate = (base_.get_poll_client_error_count() < 10) &&
-                        (base_.get_read_lidar_packet_errors() < 100) &&
-                        (base_.get_read_imu_packet_errors() < 100);
-
-  return (lidar_healthy || imu_healthy) && low_error_rate;
+  return (lidar_healthy && imu_healthy);
 }
 
 template <typename DiagnosticsVisitorRegistryType>
